@@ -1,0 +1,122 @@
+rest:
+  - resource: "https://gridx.eu.auth0.com/oauth/token"
+    scan_interval: 3600 #1h
+    timeout: 60
+    method: "POST"
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    payload: >
+      {
+        "grant_type": "http://auth0.com/oauth/grant-type/password-realm",
+        "username": "PUT_IN_YOUR_USERNAME_HERE",
+        "password": "PUT_IN_YOUR_PASSWORD_HERE",
+        "audience": "my.gridx",
+        "client_id": "CrqUiQt6VhwOgWHqkX40CgYNlhABF3dB",
+        "scope": "email openid offline_access",
+        "realm": "1komma5grad-authentication-db"
+      }
+    sensor:
+      - name: "1komma5grad API Token"
+        unique_id: "1komma5grad.api_token"
+        value_template: "{{ value_json['id_token'].split('.')[0] }}"
+        json_attributes:
+          - "id_token"
+
+  - resource: "https://api.gridx.de/systems/PUT_IN_YOUR_SYSTEM_ID_HERE/live"
+    scan_interval: 10
+    timeout: 60
+    method: "GET"
+    headers:
+      Authorization: "Bearer {{ state_attr('sensor.1komma5grad_api_token', 'id_token') }}"
+    sensor:
+      - name: "1komma5grad Produktion"
+        unique_id: "1komma5grad_production"
+        unit_of_measurement: "W"
+        device_class: "power"
+        state_class: "measurement"
+        value_template: "{{ value_json['production'] | int }}"
+        icon: mdi:solar-power
+      - name: "1komma5grad Haushaltsverbauch"
+        unique_id: "1komma5grad_consumption"
+        unit_of_measurement: "W"
+        device_class: "power"
+        state_class: "measurement"
+        value_template: "{{ value_json['consumption'] | int }}"
+        icon: mdi:home-lightning-bolt-outline
+      - name: "1komma5grad Direktverbauch"
+        unique_id: "1komma5grad_direct_consumption"
+        unit_of_measurement: "W"
+        device_class: "power"
+        state_class: "measurement"
+        value_template: "{{ value_json['directConsumption'] | int }}"
+        icon: mdi:home-lightning-bolt
+      - name: "1komma5grad Netz"
+        unique_id: "1komma5grad_grid"
+        unit_of_measurement: "W"
+        device_class: "power"
+        state_class: "measurement"
+        value_template: "{{ value_json['grid'] | int }}"
+        icon: mdi:transmission-tower
+      - name: "1komma5grad Netzbezug"
+        unique_id: "1komma5grad_grid_consumption"
+        unit_of_measurement: "W"
+        device_class: "power"
+        state_class: "measurement"
+        value_template: >
+          {% if value_json['grid'] | int > 0 -%}
+            {{ value_json['grid'] | int }}
+          {%- else -%}
+            {{ 0 | int }}
+          {%- endif %}
+        icon: mdi:transmission-tower-export
+      - name: "1komma5grad Netzeinspeisung"
+        unique_id: "1komma5grad_grid_supply"
+        unit_of_measurement: "W"
+        device_class: "power"
+        state_class: "measurement"
+        value_template: >
+          {% if value_json['grid'] | int < 0 -%}
+            {{ -1 * value_json['grid'] | int }}
+          {%- else -%}
+            {{ 0 | int }}
+          {%- endif %}
+        icon: mdi:transmission-tower-import
+      - name: "1komma5grad Batterie"
+        unique_id: "1komma5grad_battery"
+        unit_of_measurement: "W"
+        device_class: "power"
+        state_class: "measurement"
+        value_template: "{{ -1 * value_json['battery']['power'] | int }}"
+        icon: mdi:battery-sync
+      - name: "1komma5grad Batterie Entladung"
+        unique_id: "1komma5grad_battery_consumption"
+        unit_of_measurement: "W"
+        device_class: "power"
+        state_class: "measurement"
+        value_template: >
+          {% if value_json['battery']['power'] | int > 0 -%}
+            {{ value_json['battery']['power'] | int }}
+          {%- else -%}
+            {{ 0 | int }}
+          {%- endif %}
+        icon: mdi:battery-minus
+      - name: "1komma5grad Batterie Ladung"
+        unique_id: "1komma5grad_battery_supply"
+        unit_of_measurement: "W"
+        device_class: "power"
+        state_class: "measurement"
+        value_template: >
+          {% if value_json['battery']['power'] | int < 0 -%}
+            {{ -1 * value_json['battery']['power'] | int }}
+          {%- else -%}
+            {{ 0 | int }}
+          {%- endif %}
+        icon: mdi:battery-plus
+      - name: "1komma5grad Batterie-Ladezustand"
+        unique_id: "1komma5grad_stateOfCharge"
+        unit_of_measurement: "%"
+        device_class: "battery"
+        state_class: "measurement"
+        value_template: "{{ 100 * value_json['battery']['stateOfCharge'] }}"
+        icon: mdi:battery
